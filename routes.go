@@ -65,7 +65,10 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	username := mux.Vars(r)["username"]
+	progress := s.persistence.accProgresses(username)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(progress)
 }
 
 func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
@@ -73,5 +76,11 @@ func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Reques
 	_ = json.NewDecoder(r.Body).Decode(&progress)
 	username := mux.Vars(r)["username"]
 
-	dailyProgress, err := s.persistence.addProgress(username, progress)
+	if !s.persistence.userKnown(username) {
+		http.Error(w, "User "+username+" not found.", http.StatusNotFound)
+	}
+
+	dailyProgress := s.persistence.addProgress(username, progress)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(dailyProgress)
 }

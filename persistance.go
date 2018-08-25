@@ -7,12 +7,14 @@ import (
 
 // The persistence is a layer that stores the users' data and abstracts access over these data.
 type Persistence struct {
-	tracks map[string]Track
+	tracks     map[string]Track
+	progresses map[string][]Progress
 }
 
 func initDefaultPersistance() *Persistence {
 	tracks := make(map[string]Track)
-	p := Persistence{tracks: tracks}
+	progresses := make(map[string][]Progress)
+	p := Persistence{tracks: tracks, progresses:progresses}
 
 	// Add example track as to test the core.
 	p.tracks["tobscore"] = Track{
@@ -32,8 +34,7 @@ func initDefaultPersistance() *Persistence {
 }
 
 func (p *Persistence) getTrackByUsername(username string) (Track, error) {
-	usernameLower := strings.ToLower(username)
-	if res, ok := p.tracks[usernameLower]; ok {
+	if res, ok := p.tracks[toLower(username)]; ok {
 		return res, nil
 	}
 	return Track{}, errors.New("Cannot find track for user " + username)
@@ -44,12 +45,43 @@ func (p *Persistence) addTrack(username string, track Track) bool {
 	p.tracks[username] = track
 	return true
 }
-func (p *Persistence) addProgress(username string, progress Progress) (*Progress, error) {
-	// Only add progress if user has a track
-	resProgress := Progress{}
-	if _, err := p.getTrackByUsername(username); err != nil {
-		return &resProgress, nil
+
+func (p *Persistence) getProgressByUsername(username string) []Progress {
+	return p.progresses[toLower(username)]
+}
+
+func (p *Persistence) accProgresses(username string) []Progress {
+	allProgresses := p.getProgressByUsername(username)
+	tempProgressInfo := make(map[string]Distance)
+	var resProgresses []Progress
+	for _, prog := range allProgresses {
+		tmpDistane := tempProgressInfo[prog.Date] + prog.Distance
+		tempProgressInfo[prog.Date] = tmpDistane
 	}
 
-	return &Progress{}, nil
+	// Fill the result array from the info in the map
+	for date, dist := range tempProgressInfo {
+		resProgresses = append(resProgresses, Progress{
+			Date:     date,
+			Distance: dist,
+		})
+	}
+	return resProgresses
+}
+
+// AddProgress adds the given progress to the list of progresses for the given user. It then returns the user's daily progress. If there was progress stored for the day previously, the given amount will be added upon the old value.
+func (p *Persistence) addProgress(username string, progress Progress) Progress {
+	progressMap := p.progresses
+	progressList := progressMap[toLower(username)]
+	progressMap[toLower(username)] = append(progressList, progress)
+	return progress
+}
+
+func (p *Persistence) userKnown(username string) bool {
+	_, exists := p.tracks[toLower(username)]
+	return exists
+}
+
+func toLower(username string) string {
+	return strings.ToLower(username)
 }
