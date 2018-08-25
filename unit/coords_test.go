@@ -1,13 +1,14 @@
 package unit
 
 import (
-	"testing"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"math"
+	"testing"
 )
 
-var karlsruhe = Coord{lat: 49.013482, lon: 8.404235}
-var berlin = Coord{lat: 52.519067, lon: 13.406528}
+var karlsruhe = Coordinate{Latitude: 49.013482, Longitude: 8.404235}
+var berlin = Coordinate{Latitude: 52.519067, Longitude: 13.406528}
 
 func TestDistanceReversal(t *testing.T) {
 	distance := Distance(karlsruhe, berlin)
@@ -20,7 +21,7 @@ func TestDistanceReversal(t *testing.T) {
 
 func TestDistanceKarlsruheBerlin(t *testing.T) {
 	var distance = Distance(karlsruhe, berlin)
-	distanceExpected := Meter(524000)
-	delta := Meter(1000)
-	assert.True(t, Meter(math.Abs(float64(distance)-float64(distanceExpected))) < delta, "The difference between the expected and the actual value is too large. Got " + distance.String())
+	distanceExpected := 524000
+	var delta int64 = 1000
+	assert.True(t, int64(math.Abs(float64(distance)-float64(distanceExpected))) < delta, fmt.Sprintf("The difference between the expected and the actual value is too large. Got %d", distance))
 }

@@ -10,18 +10,14 @@ import (
 
 const port = 63971
 
-var progress []Progress
-var progressID = 3
-
 type server struct {
-	router *mux.Router
+	router      *mux.Router
+	persistence *Persistence
 }
 
 func main() {
-	progress = append(progress, Progress{ID: "1", TrackID: "1", Distance: Distance{Value: 1500, Unit: "meter"}, Date: "07/08/2018"})
-	progress = append(progress, Progress{ID: "2", TrackID: "1", Distance: Distance{Value: 3500, Unit: "meter"}, Date: "07/08/2018"})
-
-	server := server{router: mux.NewRouter()}
+	var p = initDefaultPersistance()
+	server := server{router: mux.NewRouter(), persistence: p}
 	server.routes()
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), server.router))
 }
