@@ -1,4 +1,4 @@
-package main
+package model
 
 type Track struct {
 	Start    Location `json:"start"`

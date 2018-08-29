@@ -10,8 +10,8 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
-walk
-walk.exe
+aity
+aity.exe
 
 # Goland IDE
 .idea/

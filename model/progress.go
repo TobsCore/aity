@@ -1,4 +1,4 @@
-package main
+package model
 
 type Progress struct {
 	Date     string   `json:"date"`

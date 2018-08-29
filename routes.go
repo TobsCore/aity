@@ -3,7 +3,8 @@ package main
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/tobscore/walk/unit"
+	"github.com/tobscore/aity/model"
+	"github.com/tobscore/aity/unit"
 	"net/http"
 )
 
@@ -29,7 +30,7 @@ func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 
 // GetCurrentTrackInfo returns information about the current track of a user.
 func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
-	var track Track
+	var track model.Track
 	_ = json.NewDecoder(r.Body).Decode(&track)
 	username := mux.Vars(r)["username"]
 
@@ -56,7 +57,7 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 	distance := unit.Distance(from, to)
 
 	// Set the newly calculated distance to the track and save it in the persistence layer
-	track.Distance = Distance(distance)
+	track.Distance = model.Distance(distance)
 	s.persistence.addTrack(username, track)
 
 	// Return the saved object to the sender
@@ -72,7 +73,7 @@ func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	var progress Progress
+	var progress model.Progress
 	_ = json.NewDecoder(r.Body).Decode(&progress)
 	username := mux.Vars(r)["username"]
 
