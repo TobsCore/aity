@@ -1,0 +1,29 @@
+package mongo
+
+import "github.com/globalsign/mgo"
+
+type Session struct {
+	session *mgo.Session
+}
+
+func NewSession(url string) (*Session, error) {
+	session, err := mgo.Dial(url)
+	if err != nil {
+		return nil, err
+	}
+	return &Session{session:session}, err
+}
+
+func (s *Session) Copy() *Session {
+	return &Session{s.session.Copy()}
+}
+
+func (s *Session) GetCollection(db , col string) *mgo.Collection {
+	return s.session.DB(db).C(col)
+}
+
+func (s *Session) Close() {
+	if s.session != nil {
+		s.session.Close()
+	}
+}

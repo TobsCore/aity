@@ -18,7 +18,7 @@ func (s *server) routes() {
 // GetCurrentTrackInfo returns information about the current track of a user.
 func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 	username := mux.Vars(r)["username"]
-	track, err := s.persistence.getTrackByUsername(username)
+	track, err := s.persistence.GetTrackByUsername(username)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -28,7 +28,6 @@ func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetCurrentTrackInfo returns information about the current track of a user.
 func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 	var track model.Track
 	_ = json.NewDecoder(r.Body).Decode(&track)
@@ -58,7 +57,11 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 
 	// Set the newly calculated distance to the track and save it in the persistence layer
 	track.Distance = model.Distance(distance)
-	s.persistence.addTrack(username, track)
+	_, err = s.persistence.CreateTrack(username, &track)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Return the saved object to the sender
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -66,22 +69,24 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	username := mux.Vars(r)["username"]
+	/*username := mux.Vars(r)["username"]
 	progress := s.persistence.accProgresses(username)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(progress)
+	json.NewEncoder(w).Encode(progress)*/
+	http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 }
 
 func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	var progress model.Progress
-	_ = json.NewDecoder(r.Body).Decode(&progress)
-	username := mux.Vars(r)["username"]
+	/*	var progress model.Progress
+		_ = json.NewDecoder(r.Body).Decode(&progress)
+		username := mux.Vars(r)["username"]
 
-	if !s.persistence.userKnown(username) {
-		http.Error(w, "User "+username+" not found.", http.StatusNotFound)
-	}
+		if !s.persistence.userKnown(username) {
+			http.Error(w, "User "+username+" not found.", http.StatusNotFound)
+		}
 
-	dailyProgress := s.persistence.addProgress(username, progress)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(dailyProgress)
+		dailyProgress := s.persistence.addProgress(username, progress)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		json.NewEncoder(w).Encode(dailyProgress)*/
+	http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
 }
