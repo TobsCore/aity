@@ -69,24 +69,23 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	/*username := mux.Vars(r)["username"]
-	progress := s.persistence.accProgresses(username)
+	username := mux.Vars(r)["username"]
+	progressList, err := s.persistence.GetProgressByUsername(username)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	accumulatedProgressList := model.AccProgresses(progressList)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(progress)*/
-	http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+	json.NewEncoder(w).Encode(accumulatedProgressList)
 }
 
 func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	/*	var progress model.Progress
-		_ = json.NewDecoder(r.Body).Decode(&progress)
-		username := mux.Vars(r)["username"]
+	var progress model.Progress
+	_ = json.NewDecoder(r.Body).Decode(&progress)
+	username := mux.Vars(r)["username"]
 
-		if !s.persistence.userKnown(username) {
-			http.Error(w, "User "+username+" not found.", http.StatusNotFound)
-		}
-
-		dailyProgress := s.persistence.addProgress(username, progress)
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		json.NewEncoder(w).Encode(dailyProgress)*/
-	http.Error(w, http.StatusText(http.StatusNotImplemented), http.StatusNotImplemented)
+	dailyProgress := s.persistence.AddProgress(username, &progress)
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(dailyProgress)
 }

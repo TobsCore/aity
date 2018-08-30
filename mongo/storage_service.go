@@ -4,46 +4,54 @@ import (
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
 	"github.com/tobscore/aity/model"
+	"strings"
 )
 
 type StorageService struct {
-	trackCol *mgo.Collection
-	userCol  *mgo.Collection // TODO: Add user support to storage service
+	trackCol    *mgo.Collection
+	progressCol *mgo.Collection
 }
 
 const (
-	trackCollectionName = "tracks"
-	userCollectionName  = "users"
+	trackCollectionName    = "tracks"
+	progressCollectionName = "progress"
 )
 
 func NewStorageService(session *Session, dbName string) *StorageService {
 	trackCol := session.GetCollection(dbName, trackCollectionName)
-	trackCol.EnsureIndex(defaultIndex())
+	trackCol.EnsureIndex(trackIndex())
 
-	userCol := session.GetCollection(dbName, userCollectionName)
-	userCol.EnsureIndex(defaultIndex())
+	progressCol := session.GetCollection(dbName, progressCollectionName)
 
-	return &StorageService{trackCol: trackCol, userCol: userCol}
+	return &StorageService{trackCol: trackCol, progressCol: progressCol}
 }
 
-func defaultIndex() mgo.Index {
-	return mgo.Index{
-		Key:        []string{"username"},
-		Unique:     true,
-		DropDups:   true,
-		Background: true,
-		Sparse:     true,
-	}
+func toLower(username string) string {
+	return strings.ToLower(username)
 }
 
-func (p *StorageService) CreateTrack(username string, t *model.Track) (*mgo.ChangeInfo, error) {
+func (s *StorageService) CreateTrack(username string, t *model.Track) (*mgo.ChangeInfo, error) {
+	username = toLower(username)
 	track := newTrackModel(username, t)
-	return p.trackCol.Upsert(bson.M{"username": username}, &track)
+	return s.trackCol.Upsert(bson.M{"username": username}, &track)
 }
 
-func (p *StorageService) GetTrackByUsername(username string) (*model.Track, error) {
+func (s *StorageService) GetTrackByUsername(username string) (*model.Track, error) {
+	username = toLower(username)
 	trackMod := trackModel{}
-	err := p.trackCol.Find(bson.M{"username": username}).One(&trackMod)
+	err := s.trackCol.Find(bson.M{"username": username}).One(&trackMod)
 	return trackMod.toTrack(), err
 }
 
+func (s *StorageService) GetProgressByUsername(username string) ([]model.Progress, error) {
+	username = toLower(username)
+	progress := make([]model.Progress, 20)
+	err := s.progressCol.Find(bson.M{"username": username}).All(&progress)
+	return progress, err
+}
+
+func (s *StorageService) AddProgress(username string, p *model.Progress) error {
+	username = toLower(username)
+	progress := newProgressModel(username, p)
+	return s.progressCol.Insert(&progress)
+}
