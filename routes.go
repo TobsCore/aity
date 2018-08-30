@@ -21,11 +21,11 @@ func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 	track, err := s.persistence.GetTrackByUsername(username)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-	} else {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		json.NewEncoder(w).Encode(track)
+		http.Error(w, "No track found for user "+username, http.StatusNotFound)
+		return
 	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(track)
 }
 
 func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +75,10 @@ func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if len(progressList) == 0 {
+		http.Error(w, "No entries found for user "+username, http.StatusNotFound)
+		return
+	}
 	accumulatedProgressList := model.AccProgresses(progressList)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	json.NewEncoder(w).Encode(accumulatedProgressList)
@@ -85,7 +89,10 @@ func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Reques
 	_ = json.NewDecoder(r.Body).Decode(&progress)
 	username := mux.Vars(r)["username"]
 
-	dailyProgress := s.persistence.AddProgress(username, &progress)
+	err := s.persistence.AddProgress(username, &progress)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(dailyProgress)
+	json.NewEncoder(w).Encode(progress)
 }
