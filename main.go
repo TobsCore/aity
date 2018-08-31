@@ -21,9 +21,11 @@ func main() {
 	if err != nil {
 		panic("Cannot connect to db")
 	}
-	pers := mongo.NewStorageService(session, "aity")
-	server := server{router: mux.NewRouter(), persistence: pers}
+	p := mongo.NewStorageService(session, "aity")
+	server := server{router: mux.NewRouter(), persistence: p}
 	server.routes()
+
+	// Start the server
 	log.Printf("Starting server on port %d\n", port)
 	log.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), server.router))
 }

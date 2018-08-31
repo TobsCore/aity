@@ -26,7 +26,7 @@ func NewStorageService(session *Session, dbName string) *StorageService {
 
 	progressCol := session.GetCollection(dbName, progressCollectionName)
 
-	userCol := session.GetCollection(dbName, progressCollectionName)
+	userCol := session.GetCollection(dbName, userCollectionName)
 	userCol.EnsureIndex(userIndex())
 
 	return &StorageService{trackCol: trackCol, progressCol: progressCol, userCol: userCol}
