@@ -9,10 +9,38 @@ import (
 )
 
 func (s *server) routes() {
+	s.router.HandleFunc("/authenticate", s.Authenticate).Methods("POST")
+
 	s.router.HandleFunc("/{username}/track", s.GetCurrentTrackInfo).Methods("GET")
 	s.router.HandleFunc("/{username}/track", s.CreateNewTrack).Methods("POST")
 	s.router.HandleFunc("/{username}/track/progress", s.GetCurrentTrackProgress).Methods("GET")
 	s.router.HandleFunc("/{username}/track/progress", s.AddToCurrentTrackProgress).Methods("POST")
+}
+
+func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
+	token := r.FormValue("token")
+	if len(token) == 0 {
+		http.Error(w, "Auth token missing", http.StatusBadRequest)
+		return
+	}
+
+	u, err := lookupGoogleUser(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var exists bool
+	var user model.User
+	exists = s.persistence.UserExists(u.Email)
+	if exists {
+		user, _ = s.persistence.GetUserByEmail(u.Email)
+	} else {
+		user, _ = s.persistence.CreateUser(u.toUser())
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(user)
 }
 
 // GetCurrentTrackInfo returns information about the current track of a user.
