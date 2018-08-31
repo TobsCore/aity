@@ -24,7 +24,7 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err, statusCode := lookupGoogleUser(token)
+	u, err, statusCode := model.LookupGoogleUser(token)
 	if err != nil {
 		http.Error(w, err.Error(), statusCode)
 		return
@@ -35,11 +35,11 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 	if exists {
 		user, _ = s.persistence.GetUserByEmail(u.Email)
 	} else {
-		user, _ = s.persistence.CreateUser(u.toUser())
+		user, _ = s.persistence.CreateUser(u.ToUser())
 	}
 
 	// Create an auth response that contains information, whether the user existed before and the user information.
-	res := &authResponse{
+	res := &model.AuthResponse{
 		AlreadyRegistered: exists,
 		UserInfo:          user,
 	}
