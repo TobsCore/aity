@@ -38,8 +38,13 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 		user, _ = s.persistence.CreateUser(u.toUser())
 	}
 
+	// Create an auth response that contains information, whether the user existed before and the user information.
+	res := &authResponse{
+		AlreadyRegistered: exists,
+		UserInfo:          user,
+	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(res)
 }
 
 // GetCurrentTrackInfo returns information about the current track of a user.

@@ -10,8 +10,8 @@ import (
 )
 
 type authResponse struct {
-	alreadyRegistered bool           `json:"alreadyRegistered"`
-	userinfo          model.UserInfo `json:"user"`
+	AlreadyRegistered bool       `json:"already_registered"`
+	UserInfo          model.User `json:"user"`
 }
 
 type GoogleUser struct {
@@ -33,13 +33,6 @@ func (u *GoogleUser) toUser() *model.User {
 		Username:       u.Name,
 		RegisteredDate: time.Now(),
 	}
-}
-
-func (u *GoogleUser) toUserInfo(username string) *model.UserInfo {
-	var uInfo model.UserInfo
-	uInfo.Email = u.Email
-	uInfo.Username = username
-	return &uInfo
 }
 
 func lookupGoogleUser(token string) (*GoogleUser, error, int) {
@@ -66,5 +59,6 @@ func lookupGoogleUser(token string) (*GoogleUser, error, int) {
 		log.Println(err.Error())
 		return &uInfo, err, http.StatusBadRequest
 	}
+
 	return &uInfo, nil, http.StatusOK
 }
