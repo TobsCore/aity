@@ -24,12 +24,11 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := lookupGoogleUser(token)
+	u, err, statusCode := lookupGoogleUser(token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
-
 	var exists bool
 	var user model.User
 	exists = s.persistence.UserExists(u.Email)

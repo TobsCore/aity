@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/tobscore/aity/model"
 	"log"
 	"net/http"
@@ -41,27 +42,29 @@ func (u *GoogleUser) toUserInfo(username string) *model.UserInfo {
 	return &uInfo
 }
 
-func lookupGoogleUser(token string) (*GoogleUser, error) {
+func lookupGoogleUser(token string) (*GoogleUser, error, int) {
 	// Receive the user's information from google's servers in order to check if the user already exists in the database
 	// or create it otherwise
 	client := &http.Client{}
 	var uInfo GoogleUser
 	req, err := http.NewRequest("GET", "https://www.googleapis.com/userinfo/v2/me", nil)
 	if err != nil {
-		return &uInfo, err
+		return &uInfo, err, http.StatusBadRequest
 	}
 	req.Header.Add("Authorization", "Bearer "+token)
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Println("Cannot contact google server for authorization.")
 		log.Println(err.Error())
-		return &uInfo, err
+		return &uInfo, err, http.StatusBadRequest
+	} else if resp.StatusCode != 200 {
+		return &uInfo, errors.New("invalid token"), http.StatusUnauthorized
 	}
 	decoder := json.NewDecoder(resp.Body)
 	err = decoder.Decode(&uInfo)
 	if err != nil {
 		log.Println(err.Error())
-		return &uInfo, err
+		return &uInfo, err, http.StatusBadRequest
 	}
-	return &uInfo, nil
+	return &uInfo, nil, http.StatusOK
 }
