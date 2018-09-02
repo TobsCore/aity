@@ -5,7 +5,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/tobscore/aity/model"
 	"github.com/tobscore/aity/unit"
+	"log"
 	"net/http"
+	"strings"
 )
 
 func (s *server) routes() {
@@ -41,10 +43,20 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 		user, _ = s.persistence.CreateUser(u.ToUser())
 	}
 
+	// Create a JWT Token for the user with the application's secret
+	authToken, err := TokenForUser(user.Username)
+	if err != nil {
+		log.Printf("Error generating token for user %+v\n", user)
+		log.Println(err.Error())
+		http.Error(w, "Error generating JWT token", http.StatusInternalServerError)
+		return
+	}
+
 	// Create an auth response that contains information, whether the user existed before and the user information.
 	res := &model.AuthResponse{
 		AlreadyRegistered: exists,
 		UserInfo:          user,
+		AuthToken:         authToken,
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	json.NewEncoder(w).Encode(res)
@@ -53,6 +65,25 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 // GetCurrentTrackInfo returns information about the current track of a user.
 func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 	username := mux.Vars(r)["username"]
+	var validToken, suggestedStatus, token = ValidateToken(r.Header)
+	if !validToken {
+		http.Error(w, "Cannot validate token", suggestedStatus)
+		return
+	}
+
+	// Check, whether the username checks out. In order to do that, receive the username of the token and then check it agains the username in the url. To ensure everything works as expected, usernames are cast to lower case.
+	claims, ok := token.Claims.(*AityClaims)
+	if !ok || !token.Valid {
+		http.Error(w, "Cannot parse claims", http.StatusBadRequest)
+		return
+	}
+	userNameT := claims.Username
+	if strings.ToLower(userNameT) != strings.ToLower(username) {
+		log.Printf("%s - %s", userNameT, strings.ToLower(username))
+		http.Error(w, "Not authorized", http.StatusUnauthorized)
+		return
+	}
+
 	track, err := s.persistence.GetTrackByUsername(username)
 
 	if err != nil {
