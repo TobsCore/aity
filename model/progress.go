@@ -1,8 +1,24 @@
 package model
 
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
 type Progress struct {
 	Date     string   `json:"date"`
 	Distance Distance `json:"distance"`
+}
+
+const TimeFormat = "2006-01-02"
+
+func (p *Progress) GetDate() (time.Time, error) {
+	date, err := time.Parse(TimeFormat, p.Date)
+	if err != nil {
+		return time.Time{}, errors.New(fmt.Sprintf("Cannot parse date %s", p.Date))
+	}
+	return date, nil
 }
 
 type Distance int64

@@ -29,6 +29,9 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
+
+	// Check if the user exists already. If it does the user is returned. If it doesn't the user document is created in the database and the username is set to the user's name (which coming from google is the actual name).
+	// It's up to the client to change the username.
 	var exists bool
 	var user model.User
 	exists = s.persistence.UserExists(u.Email)
@@ -102,15 +105,22 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
 	username := mux.Vars(r)["username"]
-	progressList, err := s.persistence.GetProgressByUsername(username)
+	progressModelList, err := s.persistence.GetProgressByUsername(username)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if len(progressList) == 0 {
+	if len(progressModelList) == 0 {
 		http.Error(w, "No entries found for user "+username, http.StatusNotFound)
 		return
 	}
+	// Convert the list of progress model objects (DB) to usable progress objects.
+	progressList := make([]model.Progress, len(progressModelList))
+	for i, progressModel := range progressModelList {
+		progressList[i] = *progressModel.ToProgress()
+	}
+
+	// Generate a list of accumulated progresses, where one date has one progress distance.
 	accumulatedProgressList := model.AccProgresses(progressList)
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	json.NewEncoder(w).Encode(accumulatedProgressList)
@@ -124,6 +134,7 @@ func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Reques
 	err := s.persistence.AddProgress(username, &progress)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	json.NewEncoder(w).Encode(progress)

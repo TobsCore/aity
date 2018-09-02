@@ -49,16 +49,19 @@ func (s *StorageService) GetTrackByUsername(username string) (*model.Track, erro
 	return trackMod.toTrack(), err
 }
 
-func (s *StorageService) GetProgressByUsername(username string) ([]model.Progress, error) {
+func (s *StorageService) GetProgressByUsername(username string) ([]progressModel, error) {
 	username = toLower(username)
-	progress := make([]model.Progress, 20)
+	progress := make([]progressModel, 20)
 	err := s.progressCol.Find(bson.M{"username": username}).All(&progress)
 	return progress, err
 }
 
 func (s *StorageService) AddProgress(username string, p *model.Progress) error {
 	username = toLower(username)
-	progress := newProgressModel(username, p)
+	progress, err := newProgressModel(username, p)
+	if err != nil {
+		return err
+	}
 	return s.progressCol.Insert(&progress)
 }
 
