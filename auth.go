@@ -9,13 +9,15 @@ import (
 
 var secret = []byte("password")
 
+const tokenExpiration = time.Second * time.Duration(20)
+
 type AityClaims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
 }
 
 func TokenForUser(username string) (string, error) {
-	expTime := time.Now().Add(time.Hour * time.Duration(12))
+	expTime := time.Now().Add(tokenExpiration)
 	claims := AityClaims{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
@@ -44,14 +46,14 @@ func ValidateToken(header http.Header) (bool, int, *jwt.Token) {
 		return secret, nil
 	})
 
-	if token.Valid {
-		return true, http.StatusOK, token
-	} else if ve, ok := err.(*jwt.ValidationError); ok {
+	if ve, ok := err.(*jwt.ValidationError); ok {
 		if ve.Errors&jwt.ValidationErrorMalformed != 0 {
 			return false, http.StatusUnauthorized, &jwt.Token{}
 		} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
 			return false, http.StatusUnauthorized, &jwt.Token{}
 		}
+	} else if token.Valid {
+		return true, http.StatusOK, token
 	}
 	return false, http.StatusForbidden, &jwt.Token{}
 }
