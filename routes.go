@@ -54,9 +54,10 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	// Create an auth response that contains information, whether the user existed before and the user information.
 	res := &model.AuthResponse{
-		AlreadyRegistered: exists,
-		UserInfo:          user,
-		AuthToken:         authToken,
+		AlreadyRegistered:  exists,
+		UserInfo:           user,
+		AuthToken:          authToken,
+		ExpirationDuration: tokenExpiration.Seconds(),
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	json.NewEncoder(w).Encode(res)
