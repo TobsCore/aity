@@ -7,14 +7,17 @@ import (
 	"github.com/tobscore/aity/unit"
 	"log"
 	"net/http"
-	"strings"
 )
 
 func (s *server) routes() {
 	s.router.HandleFunc("/authenticate", s.Authenticate).Methods("POST")
 
 	s.router.HandleFunc("/{user}/track", s.GetCurrentTrackInfo).Methods("GET")
-	s.router.HandleFunc("/{user}/track", s.CreateNewTrack).Methods("POST")
+	s.router.HandleFunc("/{user}/track", s.CreateNewTrack).Methods("PUT")
+	s.router.HandleFunc("/{user}/track", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "", http.StatusNotImplemented)
+		return
+	}).Methods("POST")
 	s.router.HandleFunc("/{user}/track/progress", s.GetCurrentTrackProgress).Methods("GET")
 	s.router.HandleFunc("/{user}/track/progress", s.AddToCurrentTrackProgress).Methods("POST")
 }
@@ -65,26 +68,12 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 // GetCurrentTrackInfo returns information about the current track of a user.
 func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
 	user := mux.Vars(r)["user"]
-	var validToken, suggestedStatus, token = ValidateToken(r.Header)
-	if !validToken {
-		http.Error(w, "Cannot validate token", suggestedStatus)
-		return
-	}
-
-	// Check, whether the user checks out. In order to do that, receive the user of the token and then check it agains the user in the url. To ensure everything works as expected, usernames are cast to lower case.
-	claims, ok := token.Claims.(*AityClaims)
-	if !ok || !token.Valid {
-		http.Error(w, "Cannot parse claims", http.StatusBadRequest)
-		return
-	}
-	claimsUser := claims.User
-	if strings.ToLower(claimsUser) != strings.ToLower(user) {
-		log.Printf("%s - %s", claimsUser, strings.ToLower(user))
-		http.Error(w, "Not authorized", http.StatusUnauthorized)
-		return
-	}
-
 	track, err := s.persistence.GetTrackByUsername(user)
 
 	if err != nil {
@@ -96,6 +85,11 @@ func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
 	var track model.Track
 	_ = json.NewDecoder(r.Body).Decode(&track)
 	user := mux.Vars(r)["user"]
@@ -136,6 +130,11 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
 	user := mux.Vars(r)["user"]
 	progressModelList, err := s.persistence.GetProgressByUsername(user)
 	if err != nil {
@@ -159,6 +158,11 @@ func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
 	var progress model.Progress
 	_ = json.NewDecoder(r.Body).Decode(&progress)
 	user := mux.Vars(r)["user"]
