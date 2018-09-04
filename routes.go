@@ -13,10 +13,10 @@ import (
 func (s *server) routes() {
 	s.router.HandleFunc("/authenticate", s.Authenticate).Methods("POST")
 
-	s.router.HandleFunc("/{username}/track", s.GetCurrentTrackInfo).Methods("GET")
-	s.router.HandleFunc("/{username}/track", s.CreateNewTrack).Methods("POST")
-	s.router.HandleFunc("/{username}/track/progress", s.GetCurrentTrackProgress).Methods("GET")
-	s.router.HandleFunc("/{username}/track/progress", s.AddToCurrentTrackProgress).Methods("POST")
+	s.router.HandleFunc("/{user}/track", s.GetCurrentTrackInfo).Methods("GET")
+	s.router.HandleFunc("/{user}/track", s.CreateNewTrack).Methods("POST")
+	s.router.HandleFunc("/{user}/track/progress", s.GetCurrentTrackProgress).Methods("GET")
+	s.router.HandleFunc("/{user}/track/progress", s.AddToCurrentTrackProgress).Methods("POST")
 }
 
 func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -44,7 +44,7 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a JWT Token for the user with the application's secret
-	authToken, err := TokenForUser(user.Username)
+	authToken, err := TokenForUser(user.Email)
 	if err != nil {
 		log.Printf("Error generating token for user %+v\n", user)
 		log.Println(err.Error())
@@ -64,30 +64,30 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 // GetCurrentTrackInfo returns information about the current track of a user.
 func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
-	username := mux.Vars(r)["username"]
+	user := mux.Vars(r)["user"]
 	var validToken, suggestedStatus, token = ValidateToken(r.Header)
 	if !validToken {
 		http.Error(w, "Cannot validate token", suggestedStatus)
 		return
 	}
 
-	// Check, whether the username checks out. In order to do that, receive the username of the token and then check it agains the username in the url. To ensure everything works as expected, usernames are cast to lower case.
+	// Check, whether the user checks out. In order to do that, receive the user of the token and then check it agains the user in the url. To ensure everything works as expected, usernames are cast to lower case.
 	claims, ok := token.Claims.(*AityClaims)
 	if !ok || !token.Valid {
 		http.Error(w, "Cannot parse claims", http.StatusBadRequest)
 		return
 	}
-	userNameT := claims.Username
-	if strings.ToLower(userNameT) != strings.ToLower(username) {
-		log.Printf("%s - %s", userNameT, strings.ToLower(username))
+	claimsUser := claims.User
+	if strings.ToLower(claimsUser) != strings.ToLower(user) {
+		log.Printf("%s - %s", claimsUser, strings.ToLower(user))
 		http.Error(w, "Not authorized", http.StatusUnauthorized)
 		return
 	}
 
-	track, err := s.persistence.GetTrackByUsername(username)
+	track, err := s.persistence.GetTrackByUsername(user)
 
 	if err != nil {
-		http.Error(w, "No track found for user "+username, http.StatusNotFound)
+		http.Error(w, "No track found for user "+user, http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -97,7 +97,7 @@ func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 	var track model.Track
 	_ = json.NewDecoder(r.Body).Decode(&track)
-	username := mux.Vars(r)["username"]
+	user := mux.Vars(r)["user"]
 
 	// Check if names have been set for start and end
 	if track.Start.Name == "" {
@@ -123,7 +123,7 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 
 	// Set the newly calculated distance to the track and save it in the persistence layer
 	track.Distance = model.Distance(distance)
-	_, err = s.persistence.CreateTrack(username, &track)
+	_, err = s.persistence.CreateTrack(user, &track)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -135,14 +135,14 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
-	username := mux.Vars(r)["username"]
-	progressModelList, err := s.persistence.GetProgressByUsername(username)
+	user := mux.Vars(r)["user"]
+	progressModelList, err := s.persistence.GetProgressByUsername(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if len(progressModelList) == 0 {
-		http.Error(w, "No entries found for user "+username, http.StatusNotFound)
+		http.Error(w, "No entries found for user "+user, http.StatusNotFound)
 		return
 	}
 	// Convert the list of progress model objects (DB) to usable progress objects.
@@ -160,9 +160,9 @@ func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request)
 func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
 	var progress model.Progress
 	_ = json.NewDecoder(r.Body).Decode(&progress)
-	username := mux.Vars(r)["username"]
+	user := mux.Vars(r)["user"]
 
-	err := s.persistence.AddProgress(username, &progress)
+	err := s.persistence.AddProgress(user, &progress)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

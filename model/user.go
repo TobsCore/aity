@@ -10,7 +10,7 @@ import (
 
 type User struct {
 	Email          string    `json:"email"`
-	Username       string    `json:"username"`
+	Name           string    `json:"name"`
 	RegisteredDate time.Time `json:"registered_date"`
 }
 
@@ -30,7 +30,7 @@ type GoogleUser struct {
 func (u *GoogleUser) ToUser() *User {
 	return &User{
 		Email:          u.Email,
-		Username:       u.Name,
+		Name:           u.Name,
 		RegisteredDate: time.Now(),
 	}
 }

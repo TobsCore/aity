@@ -12,14 +12,14 @@ var secret = []byte("password")
 const tokenExpiration = time.Second * time.Duration(20)
 
 type AityClaims struct {
-	Username string `json:"username"`
+	User string `json:"user"`
 	jwt.StandardClaims
 }
 
-func TokenForUser(username string) (string, error) {
+func TokenForUser(email string) (string, error) {
 	expTime := time.Now().Add(tokenExpiration)
 	claims := AityClaims{
-		Username: username,
+		User: email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expTime.Unix(),
 			Issuer:    "AITY Backend",

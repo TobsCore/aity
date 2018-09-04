@@ -9,7 +9,7 @@ import (
 
 type userModel struct {
 	Id             bson.ObjectId `bson:"id,omitempty"`
-	Username       string
+	Name           string
 	Email          string
 	RegisteredDate time.Time
 }
@@ -27,7 +27,7 @@ func userIndex() mgo.Index {
 func (u *userModel) toUser() *model.User {
 	return &model.User{
 		Email:          u.Email,
-		Username:       u.Username,
+		Name:           u.Name,
 		RegisteredDate: u.RegisteredDate,
 	}
 }
