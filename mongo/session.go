@@ -1,13 +1,34 @@
 package mongo
 
-import "github.com/globalsign/mgo"
+import (
+	"fmt"
+	"github.com/globalsign/mgo"
+)
 
 type Session struct {
 	session *mgo.Session
 }
 
-func NewSession(url string) (*Session, error) {
+type Conn struct {
+	Host string
+	Port int
+	User string
+	Pwd  string
+}
+
+func NewSession(c Conn) (*Session, error) {
+	url := fmt.Sprintf("%s:%d", c.Host, c.Port)
+	cred := mgo.Credential{
+		Username:    c.User,
+		Password:    c.Pwd,
+	}
+
+	// Connect to the mongo instance
 	session, err := mgo.Dial(url)
+	if err != nil {
+		return nil, err
+	}
+	err = session.Login(&cred)
 	if err != nil {
 		return nil, err
 	}

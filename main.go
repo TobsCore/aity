@@ -11,15 +11,20 @@ import (
 
 const port = 63971
 
+
 type server struct {
 	router      *mux.Router
 	persistence *mongo.StorageService
 }
 
 func main() {
-	session, err := mongo.NewSession("localhost:27017")
+	mc, err := ReadConf()
 	if err != nil {
-		panic("Cannot connect to db")
+		log.Fatal(err)
+	}
+	session, err := mongo.NewSession(mc)
+	if err != nil {
+		log.Fatal("Cannot connect to db")
 	}
 	p := mongo.NewStorageService(session, "aity")
 	server := server{router: mux.NewRouter(), persistence: p}
