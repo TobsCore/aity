@@ -36,14 +36,17 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if the user exists already. If it does the user is returned. If it doesn't the user document is created in the database and the username is set to the user's name (which coming from google is the actual name).
-	// It's up to the client to change the username.
 	var exists bool
 	var user model.User
 	exists = s.persistence.UserExists(u.Email)
 	if exists {
 		user, _ = s.persistence.GetUserByEmail(u.Email)
 	} else {
-		user, _ = s.persistence.CreateUser(u.ToUser())
+		user = *u.ToUser()
+		err = s.persistence.CreateUser(&user)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 
 	// Create a JWT Token for the user with the application's secret

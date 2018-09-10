@@ -20,7 +20,7 @@ type AityClaims struct {
 
 func TokenForUser(email string) (string, error) {
 	expTime := time.Now().Add(tokenExpiration)
-	claims := AityClaims{
+	var claims jwt.Claims = AityClaims{
 		User: email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expTime.Unix(),
