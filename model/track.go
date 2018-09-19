@@ -1,6 +1,8 @@
 package model
 
 type Track struct {
+	Id       string   `json:"track-id"`
+	Active   bool     `json:"active"`
 	Start    Location `json:"start"`
 	End      Location `json:"end"`
 	Distance Distance `json:"totalDistance"`

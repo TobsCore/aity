@@ -11,7 +11,6 @@ import (
 
 const port = 63971
 
-
 type server struct {
 	router      *mux.Router
 	persistence *mongo.StorageService

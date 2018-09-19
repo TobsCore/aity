@@ -24,6 +24,13 @@ func userIndex() mgo.Index {
 	}
 }
 
+func NewUserModel(u *model.User) *userModel {
+	return &userModel{
+		Name:           u.Name,
+		Email:          u.Email,
+		RegisteredDate: u.RegisteredDate,
+	}
+}
 func (u *userModel) toUser() *model.User {
 	return &model.User{
 		Email:          u.Email,

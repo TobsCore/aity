@@ -9,17 +9,19 @@ import (
 type progressModel struct {
 	Id       bson.ObjectId `bson:"id,omitempty"`
 	Username string
+	Track    bson.ObjectId
 	Date     time.Time
 	Distance model.Distance
 }
 
-func newProgressModel(username string, p *model.Progress) (*progressModel, error) {
+func newProgressModel(trackid, username string, p *model.Progress) (*progressModel, error) {
 	date, err := p.GetDate()
 	if err != nil {
 		return &progressModel{}, err
 	}
 	return &progressModel{
 		Username: username,
+		Track:    bson.ObjectIdHex(trackid),
 		Date:     date,
 		Distance: p.Distance,
 	}, nil

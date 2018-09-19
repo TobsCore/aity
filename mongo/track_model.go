@@ -16,7 +16,7 @@ type trackModel struct {
 
 func trackIndex() mgo.Index {
 	return mgo.Index{
-		Key:        []string{"username"},
+		Key:        []string{"_id"},
 		Unique:     true,
 		DropDups:   true,
 		Background: true,
@@ -25,7 +25,9 @@ func trackIndex() mgo.Index {
 }
 
 func newTrackModel(username string, t *model.Track) *trackModel {
+	id := bson.NewObjectId()
 	return &trackModel{
+		Id:       id,
 		Username: username,
 		Start:    t.Start,
 		End:      t.End,
@@ -35,6 +37,7 @@ func newTrackModel(username string, t *model.Track) *trackModel {
 
 func (t *trackModel) toTrack() *model.Track {
 	return &model.Track{
+		Id:       t.Id.Hex(),
 		Start:    t.Start,
 		End:      t.End,
 		Distance: t.Distance,

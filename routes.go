@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"github.com/globalsign/mgo/bson"
 	"github.com/gorilla/mux"
 	"github.com/tobscore/aity/model"
 	"github.com/tobscore/aity/unit"
@@ -12,14 +14,16 @@ import (
 func (s *server) routes() {
 	s.router.HandleFunc("/authenticate", s.Authenticate).Methods("POST")
 
-	s.router.HandleFunc("/{user}/track", s.GetCurrentTrackInfo).Methods("GET")
-	s.router.HandleFunc("/{user}/track", s.CreateNewTrack).Methods("PUT")
-	s.router.HandleFunc("/{user}/track", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "", http.StatusNotImplemented)
-		return
-	}).Methods("POST")
-	s.router.HandleFunc("/{user}/track/progress", s.GetCurrentTrackProgress).Methods("GET")
-	s.router.HandleFunc("/{user}/track/progress", s.AddToCurrentTrackProgress).Methods("POST")
+	s.router.HandleFunc("/{user}/track", s.CreateTrack).Methods("POST")
+
+	s.router.HandleFunc("/{user}/track/current", s.GetCurrTrack).Methods("GET")
+	s.router.HandleFunc("/{user}/track/{trackid:[a-z0-9]+}", s.GetTrack).Methods("GET")
+
+	s.router.HandleFunc("/{user}/track/current/progress", s.CreateProgressForCurr).Methods("POST")
+	s.router.HandleFunc("/{user}/track/current/progress", s.GetProgressForCurr).Methods("GET")
+
+	s.router.HandleFunc("/{user}/track/{trackid:[a-z0-9]+}/progress", s.CreateProgress).Methods("POST")
+	s.router.HandleFunc("/{user}/track/{trackid:[a-z0-9]+}/progress", s.GetProgress).Methods("GET")
 }
 
 func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -69,15 +73,41 @@ func (s *server) Authenticate(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
-// GetCurrentTrackInfo returns information about the current track of a user.
-func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
+// GetTrack returns information about the given track of a user
+func (s *server) GetTrack(w http.ResponseWriter, r *http.Request) {
 	if valid, s, c := ValidateRequest(r); !valid {
 		http.Error(w, s, c)
 		return
 	}
 
 	user := mux.Vars(r)["user"]
-	track, err := s.persistence.GetTrackByUsername(user)
+	trackId := mux.Vars(r)["trackid"]
+
+	// Check if the given id is valid
+	if !bson.IsObjectIdHex(trackId) {
+		http.Error(w, "Invalid track id: "+trackId, http.StatusNotFound)
+		return
+	}
+
+	track, err := s.persistence.GetTrackById(trackId, user)
+	if err != nil {
+		http.Error(w, "No track with id "+trackId+" found for user "+user, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(track)
+}
+
+// GetCurrTrack returns information about the current track of a user.
+func (s *server) GetCurrTrack(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
+	user := mux.Vars(r)["user"]
+	track, err := s.persistence.GetCurrentTrackByUsername(user)
 
 	if err != nil {
 		http.Error(w, "No track found for user "+user, http.StatusNotFound)
@@ -87,7 +117,7 @@ func (s *server) GetCurrentTrackInfo(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(track)
 }
 
-func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
+func (s *server) CreateTrack(w http.ResponseWriter, r *http.Request) {
 	if valid, s, c := ValidateRequest(r); !valid {
 		http.Error(w, s, c)
 		return
@@ -121,9 +151,22 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 
 	// Set the newly calculated distance to the track and save it in the persistence layer
 	track.Distance = model.Distance(distance)
-	_, err = s.persistence.CreateTrack(user, &track)
+	trackid, err := s.persistence.CreateTrack(user, &track)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Set the id of the returned track to the id of the created track (db)
+	track.Id = trackid
+
+	// Update the current track so it is the newly created track
+	err = s.persistence.UpdateCurrentTrack(user, track)
+	// And set the returned track object to active
+	track.Active = true
+	if err != nil {
+		log.Println("Cannot update current track for user " + user)
+		http.Error(w, "Cannot update current track", http.StatusInternalServerError)
 		return
 	}
 
@@ -132,49 +175,128 @@ func (s *server) CreateNewTrack(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(track)
 }
 
-func (s *server) GetCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
+func (s *server) GetProgressForCurr(w http.ResponseWriter, r *http.Request) {
+	// Validate user request. Is the token provided and is it still valid?
 	if valid, s, c := ValidateRequest(r); !valid {
 		http.Error(w, s, c)
 		return
 	}
 
 	user := mux.Vars(r)["user"]
-	progressModelList, err := s.persistence.GetProgressByUsername(user)
+	track, err := s.persistence.GetCurrentTrackByUsername(user)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	accProgressList, err := s.getProgress(r, user, track.Id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(accProgressList)
+}
+
+func (s *server) GetProgress(w http.ResponseWriter, r *http.Request) {
+	// Validate user request. Is the token provided and is it still valid?
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
+	user := mux.Vars(r)["user"]
+	trackId := mux.Vars(r)["trackid"]
+
+	// Check if the given id is valid
+	if !bson.IsObjectIdHex(trackId) {
+		http.Error(w, "Invalid track id: "+trackId, http.StatusNotFound)
+		return
+	}
+
+	accProgressList, err := s.getProgress(r, user, trackId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(accProgressList)
+}
+
+func (s *server) getProgress(r *http.Request, user, trackId string) ([]model.Progress, error) {
+	progressModelList, err := s.persistence.GetProgressByUsername(trackId, user)
+
+	progressList := make([]model.Progress, len(progressModelList))
+	if err != nil {
+		return progressList, err
 	}
 	if len(progressModelList) == 0 {
-		http.Error(w, "No entries found for user "+user, http.StatusNotFound)
-		return
+		return progressList, errors.New("No progress entries found for user " + user + " and track " + trackId)
 	}
 	// Convert the list of progress model objects (DB) to usable progress objects.
-	progressList := make([]model.Progress, len(progressModelList))
 	for i, progressModel := range progressModelList {
 		progressList[i] = *progressModel.ToProgress()
 	}
 
 	// Generate a list of accumulated progresses, where one date has one progress distance.
-	accumulatedProgressList := model.AccProgresses(progressList)
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(accumulatedProgressList)
+	accProgressList := model.AccProgresses(progressList)
+	return accProgressList, nil
 }
 
-func (s *server) AddToCurrentTrackProgress(w http.ResponseWriter, r *http.Request) {
+func (s *server) CreateProgressForCurr(w http.ResponseWriter, r *http.Request) {
 	if valid, s, c := ValidateRequest(r); !valid {
 		http.Error(w, s, c)
 		return
 	}
 
-	var progress model.Progress
-	_ = json.NewDecoder(r.Body).Decode(&progress)
 	user := mux.Vars(r)["user"]
-
-	err := s.persistence.AddProgress(user, &progress)
+	track, err := s.persistence.GetCurrentTrackByUsername(user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	progress, err := s.createProgress(r, user, track.Id)
+	if err != nil {
+		http.Error(w, "Invalid track id: "+track.Id, http.StatusNotFound)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(progress)
+	json.NewEncoder(w).Encode(*progress)
+}
+
+func (s *server) CreateProgress(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
+	user := mux.Vars(r)["user"]
+	trackId := mux.Vars(r)["trackid"]
+
+	progress, err := s.createProgress(r, user, trackId)
+	if err != nil {
+		http.Error(w, "Invalid track id: "+trackId, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(*progress)
+}
+
+func (s *server) createProgress(r *http.Request, user, trackId string) (*model.Progress, error) {
+	var progress model.Progress
+	_ = json.NewDecoder(r.Body).Decode(&progress)
+
+	// Check if the given id is valid
+	if !bson.IsObjectIdHex(trackId) {
+		return &progress, errors.New("invalid track id")
+	}
+
+	err := s.persistence.AddProgressToTrack(trackId, user, &progress)
+	if err != nil {
+		return &progress, err
+	}
+	return &progress, nil
 }
