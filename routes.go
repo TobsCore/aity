@@ -14,7 +14,8 @@ import (
 func (s *server) routes() {
 	s.router.HandleFunc("/authenticate", s.Authenticate).Methods("POST")
 
-	s.router.HandleFunc("/{user}/track", s.CreateTrack).Methods("POST")
+	s.router.HandleFunc("/{user}/tracks", s.CreateTrack).Methods("POST")
+	s.router.HandleFunc("/{user}/tracks", s.GetAllTracks).Methods("GET")
 
 	s.router.HandleFunc("/{user}/track/current", s.GetCurrTrack).Methods("GET")
 	s.router.HandleFunc("/{user}/track/{trackid:[a-z0-9]+}", s.GetTrack).Methods("GET")
@@ -97,6 +98,22 @@ func (s *server) GetTrack(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	json.NewEncoder(w).Encode(track)
+}
+
+// GetAllTracks returns information about the current track of a user.
+func (s *server) GetAllTracks(w http.ResponseWriter, r *http.Request) {
+	if valid, s, c := ValidateRequest(r); !valid {
+		http.Error(w, s, c)
+		return
+	}
+
+	user := mux.Vars(r)["user"]
+	tracks, err := s.persistence.GetAllTracksByUsername(user)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(tracks)
 }
 
 // GetCurrTrack returns information about the current track of a user.

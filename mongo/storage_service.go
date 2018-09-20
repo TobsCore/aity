@@ -118,6 +118,7 @@ func (s *StorageService) CreateUser(user *model.User) error {
 	err := s.userCol.Insert(userMod)
 	return err
 }
+
 func (s *StorageService) UpdateCurrentTrack(user string, t model.Track) error {
 	currentTrack := NewCurrentTrackModel(user, t.Id)
 	_, err := s.activeTrack.Upsert(bson.M{"username": user}, &currentTrack)
@@ -133,4 +134,23 @@ func (s *StorageService) checkActive(track *model.Track) {
 
 	active := c == 1
 	track.Active = active
+}
+
+func (s *StorageService) GetAllTracksByUsername(username string) ([]model.Track, error) {
+	username = toLower(username)
+	tM := make([]trackModel, 5)
+	err := s.trackCol.Find(bson.M{"username": username}).All(&tM)
+
+	// Convert the (db-)internal track model to the actual track model
+	tracks := make([]model.Track, len(tM))
+	for i, track := range tM {
+		t := *track.toTrack()
+
+		// And don't forget to check if the track is active
+		s.checkActive(&t)
+		tracks[i] = t
+	}
+
+
+	return tracks, err
 }
